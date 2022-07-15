@@ -1,14 +1,15 @@
 import datetime
 import hashlib
 import json
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 
 class Blockchain:
     def __init__(self):
         self.chain = []
-        self.create_block(
+        self.createBlock(
                         proof = 1, 
-                        prevHash = '0')
+                        prevHash = '0',
+                        data = None)
     
     def createBlock(self, proof, prevHash, data):
         block = {
@@ -40,11 +41,14 @@ class Blockchain:
 
 
     def hash(self, block):
+
         encodedBlock = json.dumps(
                             obj = block,
                             sort_keys=True
         )
+        # print(type(encodedBlock))
         hash = hashlib.sha256(encodedBlock.encode()).hexdigest()
+        return hash
 
     def isChainValid(self):
         prevBlock = self.chain[0]
@@ -63,14 +67,36 @@ class Blockchain:
         return True
 
         
-
-
-
-
-
-
 app = Flask(__name__)
+blockchain = Blockchain()
 
-@app.route("/")
-def hello_world():
-    return "<p>Hello, World!</p>"
+@app.route('/mineblock', methods=['GET'])
+def mineBlock():
+    print('Hello')
+    prevBlock = blockchain.getPrevBlock()
+    prevProof = prevBlock['proof']
+    proof = blockchain.proofOfWork(prevProof)
+    prevHash = blockchain.hash(prevBlock)
+    block = blockchain.createBlock(
+                                    proof = proof, 
+                                    prevHash = prevHash,
+                                    data = request.json['data'])
+    response = {'message':      "Mine Successful!",
+                'index':        block['index'],
+                'timestamp':    block['timestamp'],
+                'proof':        block['proof'],
+                'prevHash':     block['prevHash']
+                    }
+
+    return jsonify(response)
+
+
+@app.route('/getchain', methods = ['GET'])
+def getChain():
+    response = {'chain':    blockchain.chain,
+                'length':   len(blockchain.chain)
+                }
+    return response
+
+if __name__ == '__main__':
+    app.run()
